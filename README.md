@@ -1,1 +1,1 @@
-# devops-hw
+# DevOps CI/CD
