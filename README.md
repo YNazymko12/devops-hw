@@ -62,7 +62,6 @@ terraform destroy
 - Створює **S3 bucket** для стейтів.
 - Увімкнене версіювання.
 - Створює **DynamoDB таблицю** для блокування.
-- Виводить URL бакета та ім’я таблиці.
 
 ![Results](./assets/s3_01.png) ![Results](./assets/s3_02.png)
 ![Results](./assets/s3_03.png) ![Results](./assets/dynamoDB.png)
@@ -85,6 +84,5 @@ terraform destroy
 - Створює **ECR-репозиторій**.
 - Включає **scan on push** для перевірки безпеки образів.
 - Налаштовує політику доступу.
-- Виводить URL репозиторію.
 
 ![Results](./assets/ecr.png)
