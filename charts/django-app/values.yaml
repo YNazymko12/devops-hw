@@ -1,0 +1,28 @@
+# Образ Django з ECR
+image:
+  repository: 844446096849.dkr.ecr.eu-central-1.amazonaws.com/lesson-5-ecr
+  tag: latest
+  pullPolicy: Always
+
+# Сервіс
+service:
+  type: LoadBalancer # для зовнішнього доступу
+  port: 80
+  targetPort: 8000
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+# Змінні середовища (ConfigMap)
+env:
+  POSTGRES_HOST: 'db'
+  POSTGRES_PORT: '5432'
+  POSTGRES_USER: 'django_user'
+  POSTGRES_DB: 'django_db'
+  POSTGRES_PASSWORD: 'pass9764gd'
+  DEBUG: 'False'
+  SECRET_KEY: 'n-yz7i6wt0-mpib=qukdea+v46qflxgvhhd*=csi9#qju)1^ds'
