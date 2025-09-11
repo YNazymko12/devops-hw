@@ -1,65 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "django-app.fullname" . }}
+  name: {{ .Release.Name }}-django
+  namespace: {{ .Release.Namespace | default "default" }}
   labels:
-    {{- include "django-app.labels" . | nindent 4 }}
+    app: {{ .Release.Name }}-django
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: {{ .Values.autoscaling.enabled | ternary .Values.autoscaling.minReplicas 1 }}
   selector:
     matchLabels:
-      {{- include "django-app.selectorLabels" . | nindent 6 }}
+      app: {{ .Release.Name }}-django
   template:
     metadata:
       labels:
-        {{- include "django-app.selectorLabels" . | nindent 8 }}
+        app: {{ .Release.Name }}-django
     spec:
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+        - name: django
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
-              containerPort: 8000
-              protocol: TCP
+            - containerPort: {{ .Values.service.targetPort }}
           envFrom:
             - configMapRef:
-                name: {{ include "django-app.fullname" . }}-config
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health/
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          {{- with .Values.resources }}
+                name: {{ .Release.Name }}-config
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      restartPolicy: Always
