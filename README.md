@@ -1,88 +1,54 @@
-# Домашнє завдання до теми «IaC (Terraform)»
+# Домашнє завдання до теми «Вивчення Helm»
 
-Цей проєкт створює інфраструктуру на AWS за допомогою **Terraform**.  
-Він включає налаштування бекенду для стейтів, мережеву інфраструктуру (VPC) та
-репозиторій для Docker-образів (ECR).
+## Опис
 
-## Структура проєкту
+У цьому проєкті реалізовано інфраструктуру для запуску Django-застосунку в
+Kubernetes.  
+Використовуються **Terraform** для створення ресурсів в AWS та **Helm** для
+деплойменту застосунку.
 
-```
-├── .gitignore
-├── .prettierrc
-├── README.md
-├── assets/
-│   ├── screen_01.png
-│   ├── screen_02.png
-│   ├── screen_03.png
-│   ├── screen_04.png
-│   ├── screen_05.png
-│   ├── screen_06.png
-│   └── screen_07.png
-├── backend.tf               # Налаштування віддаленого бекенду (S3 + DynamoDB)
-├── main.tf                  # Головний файл для підключення модулів
-├── outputs.tf               # Загальні вихідні дані по інфраструктурі
-├── modules/
-│   ├── ecr/                 # Модуль для створення ECR репозиторію
-│   │   ├── ecr.tf
-│   │   ├── outputs.tf
-│   │   └── variables.tf
-│   ├── s3-backend/          # Модуль для створення S3 бакету і DynamoDB таблиці
-│   │   ├── dynamodb.tf
-│   │   ├── outputs.tf
-│   │   ├── s3.tf
-│   │   └── variables.tf
-│   └── vpc/                 # Модуль для побудови мережевої інфраструктури (VPC)
-│       ├── outputs.tf
-│       ├── routes.tf
-│       ├── variables.tf
-│       └── vpc.tf
-```
+## Виконані кроки
+
+### 1. Створення Kubernetes-кластера (EKS)
+
+- За допомогою Terraform у вже існуючій VPC створено кластер Kubernetes (EKS).
+- Налаштовано доступ до кластера через `kubectl`.
+
+### 2. Elastic Container Registry (ECR)
+
+- Terraform створює ECR-репозиторій.
+- Django Docker-образ завантажено в ECR за допомогою AWS CLI:
 
 ```bash
-# Ініціалізація Terraform (завантаження провайдерів і модулів)
-terraform init
-
-# Перегляд планованих змін інфраструктури
-terraform plan
-
-# Застосування конфігурації
-terraform apply
-
-# Видалення інфраструктури
-terraform destroy
-
+aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account_id>.dkr.ecr.<region>.amazonaws.com
+docker build -t django-app .
+docker tag django-app:latest <account_id>.dkr.ecr.<region>.amazonaws.com/django-app:latest
+docker push <account_id>.dkr.ecr.<region>.amazonaws.com/django-app:latest
 ```
 
----
+### 3. Helm-чарт
 
-## Модулі
+У каталозі `charts/django-app/` реалізовано:
 
-### S3
-
-- Створює **S3 bucket** для стейтів.
-- Увімкнене версіювання.
-- Створює **DynamoDB таблицю** для блокування.
-
-![Results](./assets/s3_01.png) ![Results](./assets/s3_02.png)
-![Results](./assets/s3_03.png) ![Results](./assets/dynamoDB.png)
-
----
-
-### VPC
-
-- Створює **VPC** з CIDR блоком.
-- Додає **3 публічні** та **3 приватні підмережі**.
-- Налаштовує **Internet Gateway** і **NAT Gateway**.
-- Маршрутизація через Route Tables.
-
-![Results](./assets/vpc.png)
+- **Deployment** — запускає контейнер із образом із ECR, підключає `ConfigMap`
+  через `envFrom`.
+- **Service** — типу `LoadBalancer` для зовнішнього доступу.
+- **HPA** — масштабує від 2 до 6 подів при CPU > 70%.
+- **ConfigMap** — з усіма змінними середовища (перенесеними з попереднього
+  завдання).
+- **values.yaml** — містить параметри образу, сервісу, autoscaler та
+  конфігурації.
 
 ---
 
-### ECR
+### 4. Деплоймент застосунку
 
-- Створює **ECR-репозиторій**.
-- Включає **scan on push** для перевірки безпеки образів.
-- Налаштовує політику доступу.
+```bash
+helm install django-app ./charts/django-app
+```
 
-![Results](./assets/ecr.png)
+## Результат
+
+![Results](./assets/terraform.png) ![Results](./assets/docker.png)
+![Results](./assets/ecr.png) ![Results](./assets/eks.png)
+![Results](./assets/terminal.png)
