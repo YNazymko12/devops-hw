@@ -1,6 +1,6 @@
 # Модуль S3 та DynamoDB
 module "s3_backend" {
-  source = "./modules/s3-backend"
+  source      = "./modules/s3-backend"
   bucket_name = "terraform-state-bucket-goit-lesson5"
   table_name  = "terraform-locks"
 }
@@ -24,11 +24,55 @@ module "ecr" {
 
 # Модуль EKS
 module "eks" {
-  source          = "./modules/eks"          
-  cluster_name    = "eks-cluster-demo"            # Назва кластера
-  subnet_ids      = module.vpc.public_subnets     # ID підмереж
-  instance_type   = "t3.medium"                    # Тип інстансів
-  desired_size    = 1                             # Бажана кількість нодів
-  max_size        = 2                             # Максимальна кількість нодів
-  min_size        = 1                             # Мінімальна кількість нодів
+  source        = "./modules/eks"
+  cluster_name  = "eks-cluster-demo"
+  subnet_ids    = module.vpc.public_subnets
+  instance_type = "t3.medium"
+  desired_size  = 1
+  max_size      = 2
+  min_size      = 1
+}
+
+# Data для підключення до EKS
+data "aws_eks_cluster" "eks" {
+  name = module.eks.eks_cluster_name
+}
+
+data "aws_eks_cluster_auth" "eks" {
+  name = module.eks.eks_cluster_name
+}
+
+# Провайдери
+provider "kubernetes" {
+  alias                  = "eks"
+  host                   = data.aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.eks.token
+}
+
+provider "helm" {
+  alias = "eks"
+
+  kubernetes = {
+    host                   = data.aws_eks_cluster.eks.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.eks.token
+  }
+}
+
+
+
+# Модуль Jenkins
+module "jenkins" {
+  source = "./modules/jenkins"
+
+  cluster_name      = module.eks.eks_cluster_name
+  kubeconfig        = "~/.kube/config"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.oidc_provider_url
+
+  providers = {
+    helm       = helm.eks
+    kubernetes = kubernetes.eks
+  }
 }
