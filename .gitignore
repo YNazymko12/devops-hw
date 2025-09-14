@@ -212,4 +212,5 @@ __marimo__/
 terraform.tfstate
 terraform.tfstate.backup
 *.tfvars
-*.tfbackend
+
+aws-creds.yaml

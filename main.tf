@@ -76,3 +76,16 @@ module "jenkins" {
     kubernetes = kubernetes.eks
   }
 }
+
+module "argo_cd" {
+  source        = "./modules/argo_cd"
+  namespace     = "argocd"
+  chart_version = "5.46.4"
+
+  providers = {
+    helm       = helm.eks
+    kubernetes = kubernetes.eks
+  }
+
+  depends_on = [module.eks] 
+}
