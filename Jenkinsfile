@@ -17,6 +17,9 @@ spec:
         - sleep
       args:
         - 99d
+      envFrom:
+        - secretRef:
+            name: aws-creds
     - name: git
       image: alpine/git
       command:
@@ -38,10 +41,11 @@ spec:
     CHART_PATH   = "lesson-7/charts/django-app"
     COMMIT_EMAIL = "jenkins@localhost"
     COMMIT_NAME  = "jenkins"
+    AWS_REGION   = "eu-central-1"
   }
 
   stages {
-    stage('Checkout app code (lesson-4)') {
+    stage('Checkout app code') {
       steps {
         container('git') {
           sh '''
@@ -57,26 +61,16 @@ spec:
     stage('Build & Push Docker Image') {
       steps {
         container('kaniko') {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'aws-creds',
-            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-          ]]) {
-            withEnv(["AWS_DEFAULT_REGION=${AWS_REGION}"]) {
-              sh '''
-                set -eux
-                /kaniko/executor \
-                  --context `pwd`/app-src/django \
-                  --dockerfile `pwd`/app-src/django/Dockerfile \
-                  --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
-                  --cache=true
-              '''
-            }
-          }
+          sh '''
+            set -eux
+            /kaniko/executor \
+              --context `pwd`/app-src/django \
+              --dockerfile `pwd`/app-src/django/Dockerfile \
+              --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \
+              --cache=true
+          '''
         }
       }
     }
-
-  } 
-} 
+  }
+}

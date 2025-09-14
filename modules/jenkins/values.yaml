@@ -32,12 +32,13 @@ controller:
     - docker-plugin:latest
     - docker-workflow:latest
     - job-dsl:latest
+    - aws-credentials:latest
+    - aws-java-sdk:latest
 
   serviceAccount:
     name: jenkins-sa
     create: false
 
-  # Додаємо extraSecrets всередині controller
   extraSecrets:
     - name: jenkins-github-creds
 
@@ -48,7 +49,7 @@ controller:
           system:
             domainCredentials:
               - credentials:
-                  - usernamePassword:   # ← Використовуйте usernamePassword, а не string
+                  - usernamePassword:   
                       scope: GLOBAL
                       id: "github-token"
                       username: ${jenkins_github_creds_username}
