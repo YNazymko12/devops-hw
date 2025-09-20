@@ -62,8 +62,6 @@ terraform destroy
    kubectl get all -n jenkins
    ```
 
-````
-
 2. **Доступ до Jenkins UI**
 
    ```bash
@@ -149,18 +147,18 @@ terraform destroy
 
 **Встановлення Prometheus та Grafana**
 
-   ```bash
-   # Додайте Helm репозиторій
-   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-   helm repo add grafana https://grafana.github.io/helm-charts
-   helm repo update
+```bash
+# Додайте Helm репозиторій
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
 
-   # Встановлення Prometheus
-   helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
+# Встановлення Prometheus
+helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 
-   # Доступ до Grafana
-   kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
-   ```
+# Доступ до Grafana
+kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+```
 
 3. **Dashboard ID 15661 для Grafana**
 
@@ -170,7 +168,6 @@ terraform destroy
    - Логін/пароль: `admin/prom-operator`
    - Import Dashboard → Введіть ID: `15661`
    - Це dashboard надає детальні метрики для Kubernetes кластера
-
 
 ## Висновки
 
@@ -187,12 +184,7 @@ terraform destroy
 
 ## Результати
 
-![Results](./assets/1.png) ![Results](./assets/2.png)
-![Results](./assets/3.png) ![Results](./assets/4.png)
-![Results](./assets/5.png)
-![Results](./assets/6.png)
-![Results](./assets/7.png)
-![Results](./assets/8.png)
-![Results](./assets/9.png)
+![Results](./assets/1.png) ![Results](./assets/2.png) ![Results](./assets/3.png)
+![Results](./assets/4.png) ![Results](./assets/5.png) ![Results](./assets/6.png)
+![Results](./assets/7.png) ![Results](./assets/8.png) ![Results](./assets/9.png)
 ![Results](./assets/10.png)
-````
