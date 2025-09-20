@@ -60,4 +60,3 @@ output "jenkins_release" {
 output "jenkins_namespace" {
   value = module.jenkins.jenkins_namespace
 }
-

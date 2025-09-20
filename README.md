@@ -1,15 +1,37 @@
-# Домашнє завдання до теми «Створення гнучкого Terraform-модуля для баз даних»
+# Фінальний проєкт: Розгортання інфраструктури AWS з використанням Terraform
 
-Універсальний Terraform модуль для розгортання AWS RDS Database. Підтримує як
-стандартні RDS інстанси, так і Aurora Clusters з мінімальними змінами в
-конфігурації.
+## Опис проєкту
 
-## Особливості модуля
+Цей проєкт демонструє повне розгортання cloud-native інфраструктури на AWS з
+використанням Infrastructure as Code (IaC) підходу через Terraform. Проєкт
+включає налаштування повного CI/CD pipeline, моніторингу та управління
+Kubernetes кластером.
 
-- **Універсальність**: Один модуль для RDS та Aurora
-- **Автоматичне створення**: DB Subnet Group, Security Group, Parameter Groups
-- **Гнучкість**: Підтримка різних типів БД, версій та класів інстансів
-- **Багаторазове використання**: Мінімальні зміни для різних середовищ
+## Архітектура проєкту
+
+### Основні компоненти
+
+- **S3 Backend** - S3 бакет та DynamoDB для зберігання Terraform state
+- **VPC** - Virtual Private Cloud для ізоляції мережі з підмережами та Internet
+  Gateway
+- **EKS** - Elastic Kubernetes Service для оркестрації контейнерів з AWS EBS CSI
+  Driver
+- **RDS** - Relational Database Service з підтримкою Aurora кластера
+- **ECR** - Elastic Container Registry для зберігання Docker образів
+- **Jenkins** - CI/CD автоматизація через Helm chart
+- **Argo CD** - GitOps інструмент для CD з кастомними applications та
+  repositories
+- **Django Application** - Веб-додаток з Helm chart для деплою
+
+### Технічний стек
+
+- **Інфраструктура**: AWS Cloud (S3, DynamoDB, VPC, EKS, RDS Aurora, ECR)
+- **IaC**: Terraform з модульною архітектурою
+- **Оркестрація**: Kubernetes (EKS) з AWS EBS CSI Driver
+- **CI/CD**: Jenkins (Helm) + Argo CD (GitOps)
+- **Контейнеризація**: Docker + ECR
+- **Додаток**: Django з Helm chart для деплою
+- **State Management**: S3 + DynamoDB для Terraform backend
 
 ## Terraform
 
@@ -25,185 +47,152 @@ terraform plan
 # Застосування змін (підтвердження "yes")
 terraform apply
 
+# Видалення всіх створених ресурсів
+terraform destroy
+
 ```
 
-## Архітектура
+### Перевірка розгорнутих сервісів
 
-### При `use_aurora = false` (Standard RDS):
+#### Jenkins
 
-- Створюється одна `aws_db_instance`
-- Створюється `aws_db_parameter_group` для стандартного RDS
-- Підтримується Multi-AZ
+1. **Перевірка статусу подів**
 
-### При `use_aurora = true` (Aurora Cluster):
+   ```bash
+   kubectl get all -n jenkins
+   ```
 
-- Створюється `aws_rds_cluster`
-- Створюється один Writer інстанс
-- Створюється задана кількість Reader реплік
-- Створюється `aws_rds_cluster_parameter_group`
+````
 
-## Приклади використання
+2. **Доступ до Jenkins UI**
 
-### 1. Стандартний PostgreSQL RDS
+   ```bash
+   kubectl port-forward svc/jenkins 8080:8080 -n jenkins
+   ```
 
-```hcl
-module "postgres_rds" {
-  source = "./modules/rds"
+   Відкрийте браузер та перейдіть на: `http://localhost:8080`
 
-  name                       = "myapp-postgres"
-  use_aurora                 = false
+3. **Отримання початкового пароля**
+   ```bash
+   kubectl exec -n jenkins deployment/jenkins -- cat /var/jenkins_home/secrets/initialAdminPassword
+   ```
 
-  # RDS-specific параметри
-  engine                     = "postgres"
-  engine_version             = "17.2"
-  parameter_group_family_rds = "postgres17"
+#### Argo CD
 
-  # Загальні параметри
-  instance_class             = "db.t3.medium"
-  allocated_storage          = 100
-  db_name                    = "myapp"
-  username                   = "postgres"
-  password                   = "SecurePassword123!"
+1. **Перевірка статусу подів**
 
-  # Мережеві параметри
-  subnet_private_ids         = ["subnet-12345", "subnet-67890"]
-  subnet_public_ids          = ["subnet-abcde", "subnet-fghij"]
-  publicly_accessible        = false
-  vpc_id                     = "vpc-123456789"
+   ```bash
+   kubectl get all -n argocd
+   ```
 
-  # Опції
-  multi_az                   = true
-  backup_retention_period    = 7
+2. **Доступ до Argo CD UI**
 
-  # Параметри БД
-  parameters = {
-    max_connections              = "200"
-    log_min_duration_statement   = "500"
-    shared_preload_libraries     = "pg_stat_statements"
-  }
+   ```bash
+   kubectl port-forward svc/argocd-server 8081:443 -n argocd
+   ```
 
-  tags = {
-    Environment = "production"
-    Project     = "myapp"
-  }
-}
-```
+   Відкрийте браузер та перейдіть на: `https://localhost:8081`
 
-### 2. Aurora PostgreSQL Cluster
+3. **Отримання початкового пароля**
 
-```hcl
-module "aurora_postgres" {
-  source = "./modules/rds"
+   ```bash
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+   ```
 
-  name                       = "myapp-aurora"
-  use_aurora                 = true
-  aurora_replica_count       = 2
+   Логін: `admin`
 
-  # Aurora-specific параметри
-  engine_cluster             = "aurora-postgresql"
-  engine_version_cluster     = "15.3"
-  parameter_group_family_aurora = "aurora-postgresql15"
+4. **Перевірка Argo CD Applications**
 
-  # Загальні параметри
-  instance_class             = "db.r6g.large"
-  db_name                    = "myapp"
-  username                   = "postgres"
-  password                   = "SecurePassword123!"
+   ```bash
+   # Список додатків
+   kubectl get applications -n argocd
 
-  # Мережеві параметри
-  subnet_private_ids         = module.vpc.private_subnets
-  vpc_id                     = module.vpc.vpc_id
-  publicly_accessible        = false
+   # Детальна інформація про додаток
+   kubectl describe application <app-name> -n argocd
+   ```
 
-  # Опції
-  backup_retention_period    = 14
+#### Django Application
 
-  # Параметри БД
-  parameters = {
-    log_statement              = "all"
-    log_min_duration_statement = "1000"
-    max_connections            = "500"
-  }
+1. **Перевірка деплою Django додатку**
 
-  tags = {
-    Environment = "production"
-    Project     = "myapp"
-    Type        = "aurora"
-  }
-}
-```
+   ```bash
+   kubectl get all -n default -l app=django-app
+   ```
 
-## Змінні модуля
+2. **Доступ до Django додатку**
 
-### Обов'язкові змінні
+   ```bash
+   kubectl port-forward svc/django-app 8000:80 -n default
+   ```
 
-| Змінна               | Тип            | Опис                                     |
-| -------------------- | -------------- | ---------------------------------------- |
-| `name`               | `string`       | Унікальна назва для БД інстансу/кластера |
-| `db_name`            | `string`       | Назва бази даних для створення           |
-| `username`           | `string`       | Master користувач БД                     |
-| `password`           | `string`       | Пароль для master користувача            |
-| `vpc_id`             | `string`       | ID VPC де створюватиметься БД            |
-| `subnet_private_ids` | `list(string)` | Список ID приватних підмереж             |
+   Відкрийте браузер та перейдіть на: `http://localhost:8000`
 
-### Опціональні змінні
+3. **Перевірка логів Django**
+   ```bash
+   kubectl logs -f deployment/django-app -n default
+   ```
 
-#### Загальні параметри
+#### ECR Repository
 
-| Змінна                    | Тип           | За замовчуванням | Опис                                            |
-| ------------------------- | ------------- | ---------------- | ----------------------------------------------- |
-| `use_aurora`              | `bool`        | `false`          | Використовувати Aurora замість стандартного RDS |
-| `instance_class`          | `string`      | `"db.t3.micro"`  | Клас інстансу БД                                |
-| `publicly_accessible`     | `bool`        | `false`          | Доступність БД з інтернету                      |
-| `db_port`                 | `number`      | `5432`           | Порт для підключення до БД                      |
-| `backup_retention_period` | `string`      | `""`             | Період зберігання резервних копій (днів)        |
-| `tags`                    | `map(string)` | `{}`             | Теги для всіх ресурсів                          |
+1. **Перевірка створених репозиторіїв**
 
-#### Параметри для стандартного RDS
+   ```bash
+   aws ecr describe-repositories
+   ```
 
-| Змінна                       | Тип      | За замовчуванням | Опис                           |
-| ---------------------------- | -------- | ---------------- | ------------------------------ |
-| `engine`                     | `string` | `"postgres"`     | Тип БД движка                  |
-| `engine_version`             | `string` | `"14.7"`         | Версія движка БД               |
-| `parameter_group_family_rds` | `string` | `"postgres15"`   | Сім'я parameter group для RDS  |
-| `allocated_storage`          | `number` | `20`             | Обсяг сховища в GB             |
-| `multi_az`                   | `bool`   | `false`          | Увімкнути Multi-AZ розгортання |
+2. **Аутентифікація в ECR**
+   ```bash
+   aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
+   ```
 
-#### Параметри для Aurora
+#### Prometheus та Grafana
 
-| Змінна                          | Тип      | За замовчуванням        | Опис                                            |
-| ------------------------------- | -------- | ----------------------- | ----------------------------------------------- |
-| `engine_cluster`                | `string` | `"aurora-postgresql"`   | Тип движка для Aurora кластера                  |
-| `engine_version_cluster`        | `string` | `"15.3"`                | Версія движка для Aurora                        |
-| `parameter_group_family_aurora` | `string` | `"aurora-postgresql15"` | Сім'я parameter group для Aurora                |
-| `aurora_replica_count`          | `number` | `1`                     | Кількість read реплік в Aurora кластері         |
-| `aurora_instance_count`         | `number` | `2`                     | Загальна кількість інстансів (writer + readers) |
+**Встановлення Prometheus та Grafana**
 
-#### Мережеві параметри
+   ```bash
+   # Додайте Helm репозиторій
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   helm repo add grafana https://grafana.github.io/helm-charts
+   helm repo update
 
-| Змінна              | Тип            | За замовчуванням | Опис                                    |
-| ------------------- | -------------- | ---------------- | --------------------------------------- |
-| `subnet_public_ids` | `list(string)` | `[]`             | Список ID публічних підмереж            |
-| `parameters`        | `map(string)`  | `{}`             | Додаткові параметри для parameter group |
+   # Встановлення Prometheus
+   helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 
-## Налаштування типів БД
+   # Доступ до Grafana
+   kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
+   ```
 
-### PostgreSQL
+3. **Dashboard ID 15661 для Grafana**
 
-```hcl
-# Стандартний RDS
-engine                     = "postgres"
-engine_version             = "17.2"  # або 16.4, 15.8, 14.13
-parameter_group_family_rds = "postgres17"  # postgres16, postgres15, postgres14
+   Після встановлення Grafana:
 
-# Aurora
-engine_cluster             = "aurora-postgresql"
-engine_version_cluster     = "15.3"
-parameter_group_family_aurora = "aurora-postgresql15"
-```
+   - Перейдіть до `http://localhost:3000`
+   - Логін/пароль: `admin/prom-operator`
+   - Import Dashboard → Введіть ID: `15661`
+   - Це dashboard надає детальні метрики для Kubernetes кластера
+
+
+## Висновки
+
+Цей проєкт демонструє:
+
+- Успішне розгортання повної cloud-native інфраструктури на AWS з використанням
+  модульної архітектури Terraform
+- Налаштування CI/CD pipeline з Jenkins (Helm) та Argo CD для GitOps workflow
+- Розгортання Django додатку через Helm charts з автоматичним управлінням через
+  Argo CD
+- Використання AWS managed services (EKS, RDS Aurora, ECR, S3, DynamoDB)
+- Infrastructure as Code підхід з централізованим state management
+- Масштабованість через AWS EBS CSI Driver та HPA для додатків
 
 ## Результати
 
-![Results](./assets/screen_1.png) ![Results](./assets/screen_2.png)
-![Results](./assets/screen_3.png) ![Results](./assets/screen_4.png)
-![Results](./assets/screen_5.png)
+![Results](./assets/1.png) ![Results](./assets/2.png)
+![Results](./assets/3.png) ![Results](./assets/4.png)
+![Results](./assets/5.png)
+![Results](./assets/6.png)
+![Results](./assets/7.png)
+![Results](./assets/8.png)
+![Results](./assets/9.png)
+![Results](./assets/10.png)
+````

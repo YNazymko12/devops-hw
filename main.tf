@@ -32,7 +32,6 @@ module "eks" {
   max_size      = 2
   min_size      = 1
 }
-
 # Data для підключення до EKS
 data "aws_eks_cluster" "eks" {
   name = module.eks.eks_cluster_name
@@ -132,4 +131,3 @@ module "rds" {
     Project     = "myapp"
   }
 }
-
